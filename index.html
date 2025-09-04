@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nova To‑Do — smart, fast, offline</title>
+<meta name="theme-color" content="#0ea5e9">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 24 24'%3E%3Cpath fill='%230ea5e9' d='M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2m4.707 8.293l-5.657 5.657a1 1 0 0 1-1.414 0L7.293 13.607a1 1 0 1 1 1.414-1.414l1.343 1.343l4.95-4.95a1 1 0 1 1 1.707 1.707'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0b1020;
+  --panel:#0f1630;
+  --muted:#9fb0d0;
+  --text:#e7edff;
+  --accent:#0ea5e9;
+  --ok:#22c55e;
+  --warn:#f59e0b;
+  --danger:#ef4444;
+  --ring: 0 0 0 3px rgba(14,165,233,.35);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+  color:var(--text);
+  background:
+    radial-gradient(1000px 600px at 15% -10%, #1c3564 0%, transparent 55%),
+    radial-gradient(800px 500px at 110% 0%, #3a1c72 0%, transparent 60%),
+    var(--bg);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+}
+.app{ width:min(1100px,100%); display:grid; grid-template-columns: 340px 1fr; gap:16px }
+@media (max-width: 900px){ .app{ grid-template-columns: 1fr } }
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.015));
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:16px; padding:14px; backdrop-filter: blur(8px);
+  box-shadow: 0 16px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06);
+}
+header{ grid-column: 1 / -1; display:flex; align-items:center; justify-content:space-between }
+.brand{ display:flex; align-items:center; gap:10px; font-weight:800; letter-spacing:.3px }
+.logo{ width:38px; height:38px; border-radius:11px; display:grid; place-items:center; background:linear-gradient(135deg,#38bdf8,#6366f1) }
+.logo span{ font-size:20px; font-weight:900; color:#051220; text-shadow:0 1px 0 rgba(255,255,255,.5)}
+.actions{ display:flex; gap:8px }
+button, .chip, .tab{
+  border:1px solid rgba(255,255,255,.12);
+  background: rgba(255,255,255,.03);
+  color:var(--text);
+  padding:8px 12px; border-radius:12px; cursor:pointer;
+}
+button:hover, .tab.active{ background: rgba(255,255,255,.08) }
+button:focus{ outline:none; box-shadow: var(--ring) }
+input, select, textarea{
+  background:#0b132a; border:1px solid rgba(255,255,255,.12); color:var(--text);
+  border-radius:12px; padding:10px 12px; width:100%;
+}
+input:focus, select:focus, textarea:focus{ outline:none; box-shadow: var(--ring) }
+.row{ display:flex; gap:10px; align-items:center }
+.row.wrap{ flex-wrap:wrap }
+.grid{ display:grid; gap:10px }
+.tools{ display:flex; gap:8px; flex-wrap:wrap }
+.badge{ font-size:12px; padding:4px 8px; border-radius:999px; background:#0b132a; border:1px solid rgba(255,255,255,.1); color:var(--muted) }
+.help{ color:var(--muted); font-size:13px }
+hr{ border:none; height:1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,.12), transparent); margin:10px 0 }
+ul.list{ list-style:none; padding:0; margin:0; display:grid; gap:8px }
+.item{
+  display:grid; grid-template-columns: 28px 1fr auto; align-items:center; gap:10px;
+  padding:10px; border-radius:12px; border:1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.02);
+}
+.item.dragging{ opacity:.6; outline: 2px dashed rgba(255,255,255,.25) }
+.item.completed .title{ text-decoration: line-through; color:#9ab0d0a0 }
+.item .meta{ display:flex; gap:8px; flex-wrap:wrap; font-size:12px; color:var(--muted) }
+.item .title{ font-weight:600 }
+.item .actions{ display:flex; gap:6px }
+.kbd{ font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#0b132a; border:1px solid rgba(255,255,255,.15); border-bottom-width:2px; border-radius:8px; padding:2px 6px; font-size:12px }
+.tabs{ display:flex; gap:6px; flex-wrap:wrap }
+footer{ grid-column:1/-1; display:flex; justify-content:space-between; align-items:center; color:var(--muted); font-size:13px }
+a{ color:var(--accent) }
+.ai-tip{ font-size:12px; color:var(--muted) }
+.token{ font-weight:700; color:var(--accent) }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">
+        <div class="logo"><span>✓</span></div>
+        <div>
+          <div style="font-size:18px">Nova To‑Do</div>
+          <div class="help">Smart, fast, offline — with tiny AI assists</div>
+        </div>
+      </div>
+      <div class="actions">
+        <button id="exportBtn" title="Export tasks as JSON">Export</button>
+        <label class="chip" for="importFile" title="Import tasks from JSON">Import <input id="importFile" type="file" accept="application/json" style="display:none"></label>
+        <button id="clearBtn" title="Clear all tasks">Clear</button>
+      </div>
+    </header>
+
+    <section class="card">
+      <div class="grid">
+        <div class="row">
+          <input id="newTitle" placeholder="Add a task… e.g., Submit assignment by Friday">
+          <button id="addBtn" title="Add task (Enter)">Add</button>
+        </div>
+        <div class="row">
+          <input id="newNotes" placeholder="Notes (optional)">
+          <select id="newPriority" title="Priority">
+            <option value="normal">Priority: Normal</option>
+            <option value="low">Priority: Low</option>
+            <option value="high">Priority: High</option>
+          </select>
+          <input id="newDue" type="date" title="Due date">
+        </div>
+        <div class="tools">
+          <input id="search" placeholder="Search (⌘/Ctrl K)">
+          <div class="tabs">
+            <div class="tab active" data-filter="all">All</div>
+            <div class="tab" data-filter="active">Active</div>
+            <div class="tab" data-filter="completed">Completed</div>
+            <div class="tab" data-filter="high">High</div>
+            <div class="tab" data-filter="today">Due Today</div>
+          </div>
+          <span class="badge" id="countBadge">0 items</span>
+        </div>
+        <div class="ai-tip">Hint: Type natural language like “Study DSA 2h tomorrow 7pm” — Nova will parse date/priority and propose subtasks.</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <ul class="list" id="list"></ul>
+      <div class="help" id="empty">Your list is empty. Add a task to get started.</div>
+    </section>
+
+    <section class="card">
+      <div class="grid">
+        <div class="row wrap">
+          <div class="badge">AI Assist</div>
+          <div class="help">Lightweight, on‑device heuristics (no internet) to split tasks & parse dates.</div>
+        </div>
+        <div class="row">
+          <input id="aiInput" placeholder="Describe a goal… e.g., Build resume this weekend">
+          <button id="aiSuggest">Suggest subtasks</button>
+        </div>
+        <ul class="list" id="aiList"></ul>
+      </div>
+    </section>
+
+    <footer>
+      <div>Built by an AI (this page runs fully offline, data stays in your browser)</div>
+      <div>Shortcuts: <span class="kbd">Enter</span> add • <span class="kbd">/</span> search • <span class="kbd">E</span> edit • <span class="kbd">⌫</span> delete • drag to reorder</div>
+    </footer>
+  </div>
+
+<script>
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+const storeKey = "nova_todos_v1";
+let todos = load();
+let filter = "all";
+let q = "";
+
+function uid(){ return Math.random().toString(36).slice(2,10) }
+
+function load(){
+  try{ return JSON.parse(localStorage.getItem(storeKey)) || [] }catch(e){ return [] }
+}
+function save(){ localStorage.setItem(storeKey, JSON.stringify(todos)) }
+
+function naturalParse(input){
+  // Very small heuristic parser for dates/priority/duration hints
+  const out = { title: input.trim(), due: "", priority: "normal", notes: "" };
+  const low = input.toLowerCase();
+
+  // priority
+  if(low.includes("high priority") || low.includes("urgent") || /\b asap\b/.test(low)) out.priority = "high";
+  if(low.includes("low priority")) out.priority = "low";
+
+  // today/tomorrow/this weekend
+  const d = new Date();
+  const ymd = (dt)=> dt.toISOString().slice(0,10);
+  if(/\btoday\b/.test(low)) out.due = ymd(d);
+  if(/\btomorrow\b/.test(low)){ const t=new Date(d); t.setDate(d.getDate()+1); out.due=ymd(t) }
+  if(/\bthis weekend\b/.test(low)){
+    const t = new Date(d);
+    const day = t.getDay(); // 0 Sun .. 6 Sat
+    const diff = (6 - day + 7) % 7; // next Saturday
+    t.setDate(t.getDate()+diff);
+    out.due = ymd(t);
+  }
+  // date like 2025-09-04
+  const m = low.match(/\b(20\d{2})-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])\b/);
+  if(m) out.due = m[0];
+
+  // strip hints from title
+  out.title = out.title
+    .replace(/\b(high|low) priority\b/ig,"")
+    .replace(/\basap\b/ig,"")
+    .replace(/\btoday\b/ig,"")
+    .replace(/\btomorrow\b/ig,"")
+    .replace(/\bthis weekend\b/ig,"")
+    .replace(/\b20\d{2}-\d{2}-\d{2}\b/ig,"")
+    .replace(/\s{2,}/g," ").trim();
+
+  return out;
+}
+
+function render(){
+  const list = $("#list");
+  list.innerHTML = "";
+  const items = todos
+    .filter(t => {
+      if(filter==="active") return !t.done;
+      if(filter==="completed") return t.done;
+      if(filter==="high") return t.priority==="high";
+      if(filter==="today"){
+        const today = new Date().toISOString().slice(0,10);
+        return t.due === today;
+      }
+      return true;
+    })
+    .filter(t => !q || (t.title+ " " + (t.notes||"")).toLowerCase().includes(q))
+  ;
+
+  $("#empty").style.display = items.length? "none":"block";
+  $("#countBadge").textContent = `${todos.length} item${todos.length!==1?"s":""}`;
+
+  for(const t of items){
+    const li = document.createElement("li");
+    li.className = "item" + (t.done ? " completed":"");
+    li.draggable = true;
+    li.dataset.id = t.id;
+
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = t.done;
+    cb.addEventListener("change", () => { t.done = cb.checked; save(); render() });
+
+    const main = document.createElement("div");
+    const title = document.createElement("div");
+    title.className = "title";
+    title.textContent = t.title;
+    main.appendChild(title);
+
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    if(t.priority!=="normal"){ const p=document.createElement("span"); p.textContent=`${t.priority.toUpperCase()} priority`; meta.appendChild(p) }
+    if(t.due){ const d=document.createElement("span"); d.textContent=`Due ${t.due}`; meta.appendChild(d) }
+    if(t.notes){ const n=document.createElement("span"); n.textContent=t.notes; meta.appendChild(n) }
+    main.appendChild(meta);
+
+    const actions = document.createElement("div");
+    actions.className = "actions";
+
+    const editBtn = document.createElement("button"); editBtn.textContent = "Edit"; editBtn.title="E";
+    editBtn.addEventListener("click", () => editTask(t.id));
+    const delBtn = document.createElement("button"); delBtn.textContent = "Delete"; delBtn.title="Del";
+    delBtn.addEventListener("click", () => { if(confirm("Delete this task?")) { todos = todos.filter(x=>x.id!==t.id); save(); render(); } });
+
+    actions.append(editBtn, delBtn);
+
+    li.append(cb, main, actions);
+
+    // drag n drop
+    li.addEventListener("dragstart", e => { li.classList.add("dragging"); e.dataTransfer.setData("text/plain", t.id) });
+    li.addEventListener("dragend", () => li.classList.remove("dragging"));
+    li.addEventListener("dragover", e => e.preventDefault());
+    li.addEventListener("drop", e => {
+      e.preventDefault();
+      const fromId = e.dataTransfer.getData("text/plain");
+      const toId = t.id;
+      if(fromId===toId) return;
+      const fromIdx = todos.findIndex(x=>x.id===fromId);
+      const toIdx = todos.findIndex(x=>x.id===toId);
+      const [moved] = todos.splice(fromIdx,1);
+      todos.splice(toIdx,0,moved);
+      save(); render();
+    });
+
+    list.appendChild(li);
+  }
+}
+
+function addTaskFromInputs(){
+  const raw = $("#newTitle").value.trim();
+  if(!raw) return;
+  const parsed = naturalParse(raw);
+  const item = {
+    id: uid(), title: parsed.title || raw,
+    notes: $("#newNotes").value.trim() || parsed.notes,
+    priority: $("#newPriority").value || parsed.priority,
+    due: $("#newDue").value || parsed.due,
+    done:false, createdAt: Date.now()
+  };
+  todos.unshift(item);
+  save();
+  $("#newTitle").value = ""; $("#newNotes").value = ""; $("#newDue").value = ""; $("#newPriority").value="normal";
+  render();
+}
+
+function editTask(id){
+  const t = todos.find(x=>x.id===id); if(!t) return;
+  const title = prompt("Edit title:", t.title); if(title===null) return;
+  const notes = prompt("Edit notes:", t.notes||""); if(notes===null) return;
+  const due = prompt("Edit due date (YYYY-MM-DD):", t.due||""); if(due===null) return;
+  const priority = prompt("Edit priority (low|normal|high):", t.priority||"normal"); if(priority===null) return;
+  Object.assign(t, { title: title.trim()||t.title, notes: notes.trim(), due: (due||"").trim(), priority: (priority||"normal").trim() });
+  save(); render();
+}
+
+// AI Assist (heuristic expansion)
+function aiSuggest(text){
+  const low = text.toLowerCase().trim();
+  if(!low) return [];
+  const common = [
+    {k:"resume", subs:["Collect achievements","Choose a clean template","Draft summary","Add projects & metrics","Export PDF & review"]},
+    {k:"study", subs:["Outline syllabus","Block 2×1h sessions","Practice problems","Make revision notes","Mock test"]},
+    {k:"project", subs:["Define scope","Create repo","Set up CI","MVP feature","Write README"]},
+    {k:"interview", subs:["Research company","Review resume bullets","Practice DSA 2 sets","Prepare questions","Plan logistics"]},
+    {k:"travel", subs:["Book tickets","Find stay","Plan itinerary","Pack essentials","Notify bank"]},
+  ];
+  let found = common.find(c => low.includes(c.k));
+  let subs = found ? found.subs : ["Break into 3 steps","Do the first small step","Review and iterate"];
+  // if mentions weekend/today, add due
+  let due = "";
+  const d = new Date();
+  const ymd = (dt)=> dt.toISOString().slice(0,10);
+  if(/\bweekend\b/.test(low)){ const t=new Date(); const diff=(6 - t.getDay() + 7)%7; t.setDate(t.getDate()+diff); due=ymd(t) }
+  if(/\btoday\b/.test(low)) due = ymd(d);
+  return subs.map(s => ({
+    id: uid(), title: s, notes: "", priority: "normal", due, done:false, createdAt: Date.now()
+  }));
+}
+
+function renderAI(list){
+  const box = $("#aiList");
+  box.innerHTML = "";
+  for(const t of list){
+    const li = document.createElement("li");
+    li.className = "item";
+    const cb = document.createElement("input"); cb.type="checkbox";
+    const main = document.createElement("div");
+    const title = document.createElement("div"); title.className="title"; title.textContent=t.title;
+    const meta = document.createElement("div"); meta.className="meta"; if(t.due){ const d=document.createElement("span"); d.textContent=`Due ${t.due}`; meta.appendChild(d) }
+    main.append(title, meta);
+    const add = document.createElement("button"); add.textContent="Add";
+    add.addEventListener("click", () => { todos.unshift(t); save(); render(); add.textContent="Added"; add.disabled=true });
+    li.append(cb, main, add);
+    box.appendChild(li);
+  }
+}
+
+// UI events
+$("#addBtn").addEventListener("click", addTaskFromInputs);
+$("#newTitle").addEventListener("keydown", e => {
+  if(e.key==="Enter"){ addTaskFromInputs() }
+});
+$("#search").addEventListener("input", e => { q = e.target.value.toLowerCase(); render() });
+$("#aiSuggest").addEventListener("click", () => {
+  const ideas = aiSuggest($("#aiInput").value);
+  renderAI(ideas);
+});
+$("#exportBtn").addEventListener("click", () => {
+  const blob = new Blob([JSON.stringify(todos, null, 2)], {type:"application/json"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "todos.json"; a.click(); URL.revokeObjectURL(url);
+});
+$("#importFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if(!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try{
+      const data = JSON.parse(reader.result);
+      if(Array.isArray(data)){ todos = data; save(); render() }
+      else alert("Invalid JSON");
+    }catch(err){ alert("Could not parse JSON") }
+  };
+  reader.readAsText(f);
+});
+$("#clearBtn").addEventListener("click", () => {
+  if(confirm("Clear all tasks?")){ todos = []; save(); render() }
+});
+$$(".tab").forEach(t => t.addEventListener("click", () => {
+  $$(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active");
+  filter = t.dataset.filter; render();
+}));
+
+// keyboard shortcuts
+window.addEventListener("keydown", e => {
+  if(e.key==="/" || (e.ctrlKey && e.key.toLowerCase()==="k")){ e.preventDefault(); $("#search").focus() }
+  if(e.key.toLowerCase()==="e"){
+    const first = $("#list .item"); if(first){ editTask(first.dataset.id) }
+  }
+});
+
+render();
+</script>
+</body>
+</html>
